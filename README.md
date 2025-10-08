@@ -174,11 +174,17 @@ Añadir Fuentes de Datos (Si no lo hiciste antes):
 🛑 Detener y Limpiar el Proyecto
 Cuando hayas terminado de trabajar, puedes detener y eliminar todos los contenedores, redes y volúmenes asociados a este proyecto para liberar recursos:
 ```
-  docker compose down #Detiene y elimina los contenedores sin eliminar los volumenes manteniendo la informacion salvada previamente en la base de datos y los logs 
+  docker compose down
+
+#Detiene y elimina los contenedores sin eliminar los volumenes manteniendo la informacion salvada previamente en la base de datos y los logs 
 ```
+
 ```  
-  docker compose down -v #Detiene y elimina contenedores y los volumenes borrando toda la informacion de la base de datos y de los logs
+  docker compose down -v
+
+#Detiene y elimina contenedores y los volumenes borrando toda la informacion de la base de datos y de los logs
 ```
 ¡Eso es todo! Ahora tienes una aplicación funcional con capacidades de monitoreo de clase mundial. KeepCoding Rules!
+
 
 
