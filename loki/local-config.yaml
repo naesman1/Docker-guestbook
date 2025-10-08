@@ -1,0 +1,48 @@
+# loki/local-config.yaml
+# Configuración para una instancia local de Loki, simplificada para desarrollo.
+
+auth_enabled: false # Deshabilita la autenticación para facilitar el desarrollo local.
+
+server:
+  http_listen_port: 3100 # Puerto HTTP donde Loki escucha para recibir logs (Promtail envía aquí).
+  grpc_listen_port: 9095 # Puerto GRPC (usado para comunicación interna y algunas herramientas).
+
+common:
+  path_prefix: /loki          # Prefijo para los directorios internos de Loki.
+  replication_factor: 1       # Para desarrollo, una réplica es suficiente. En producción, >1 para redundancia.
+  ring:
+    instance_addr: 127.0.0.1  # Dirección de instancia para el "ring" (coordinación de Loki).
+    kvstore:
+      store: inmemory         # Almacenamiento en memoria para el KV store (no persistente en reinicios).
+
+schema_config:
+  # Define cómo se almacenan y se indexan los logs.
+  configs:
+    - from: 2020-10-27 # Fecha desde la que esta configuración de esquema es válida.
+      store: boltdb-shipper # Tipo de almacenamiento de índices (para logs de corto/mediano plazo).
+      object_store: filesystem # Tipo de almacenamiento para los "chunks" (datos de logs reales).
+      schema: v11 # Versión del esquema de almacenamiento de Loki. v11 es compatible con boltdb-shipper.
+      index:
+        prefix: index_ # Prefijo para los archivos de índice.
+        period: 24h    # Los índices se rotan cada 24 horas.
+
+storage_config:
+  # Configuración específica para los almacenes definidos en schema_config.
+  boltdb_shipper:
+    active_index_directory: /loki/boltdb-shipper-active # Directorio para índices activos.
+    cache_location: /loki/boltdb-shipper-cache       # Directorio para la caché de índices.
+  filesystem:
+    directory: /loki/chunks # Directorio donde se almacenan los "chunks" (bloques de logs).
+
+compactor:
+  # El "compactor" de Loki gestiona la retención y compacta los índices.
+  working_directory: /loki/compactor # Directorio de trabajo del compactor.
+  retention_enabled: true             # Habilita la política de retención de logs.
+  delete_request_store: filesystem    # Define cómo el compactor maneja las solicitudes de borrado (en el sistema de archivos).
+
+limits_config:
+  # Configuración de límites y validación para la ingesta de logs.
+  allow_structured_metadata: false # DESACTIVAR: Evita que Loki intente usar el esquema v13/TSDB para metadatos estructurados,
+                                   # lo que evita errores con el esquema v11 y boltdb-shipper.
+  reject_old_samples: true         # Rechaza logs con marcas de tiempo muy antiguas.
+  reject_old_samples_max_age: 168h # Logs más antiguos de 168 horas (7 días) serán rechazados por defecto.

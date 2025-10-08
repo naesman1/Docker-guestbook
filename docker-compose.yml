@@ -1,0 +1,152 @@
+# docker-compose.yml
+# Este archivo define y orquesta todos los servicios de tu aplicación y la pila de observabilidad.
+services:
+  # --- Servicio de la Aplicación Node.js (Guestbook) ---
+  app:
+    build:
+      context: ./app  # El contexto de construcción es el directorio actual (donde está docker-compose.yml)
+      dockerfile: Dockerfile # Usa el Dockerfile dentro de la carpeta 'app/' para construir la imagen
+    ports:
+      - "3000:3000" # Mapea el puerto 3000 del host al puerto 3000 del contenedor (para acceder a la app)
+      # Si tu aplicación expone métricas de Prometheus en un puerto diferente (ej. 9000),
+      # asegúrate de mapear también ese puerto aquí:
+      # - "9000:9000" # Descomentar y ajustar si usas un puerto de métricas dedicado.
+    env_file:
+      - .env # Carga variables de entorno desde el archivo .env en la raíz del proyecto.
+             # ¡Importante!: Este archivo se gestiona de forma segura y privada, no se sube a Git.
+    environment:
+      # Variables de entorno pasadas directamente al contenedor.
+      # Usan las variables cargadas desde .env por docker-compose.
+      DB_HOST: db # 'db' es el nombre del servicio de la base de datos en Docker Compose.
+      PORT: 3000 # Puerto interno en el que escucha la aplicación Node.js.
+      LOG_LEVEL: info # Nivel de logging para la aplicación (usando Pino).
+      TZ: America/Mexico_City # Zona horaria para la aplicación.
+    depends_on:
+      db:
+        condition: service_healthy # Asegura que el servicio 'db' esté completamente saludable antes de iniciar 'app'.
+    restart: always # El contenedor se reiniciará automáticamente si falla o se detiene.
+    healthcheck:
+      # Define cómo Docker verifica que la aplicación está funcionando correctamente.
+      test: ["CMD", "curl", "-f", "http://localhost:3000"] # Intenta una solicitud HTTP.
+      interval: 30s # Frecuencia de la verificación.
+      timeout: 10s # Tiempo máximo para que la verificación se complete.
+      retries: 5 # Número de reintentos antes de marcar el contenedor como no saludable.
+      start_period: 20s # Tiempo para que el contenedor inicie antes de empezar las verificaciones.
+    logging: # Configuración del driver de logs de Docker para este servicio.
+      driver: "json-file" # Docker escribirá los logs del contenedor a un archivo JSON en el host.
+                          # Promtail leerá de estos archivos.
+      options:
+        max-size: "10m" # Tamaño máximo de cada archivo de log antes de rotar.
+        max-file: "5"   # Número de archivos de log a mantener (5 archivos de 10MB cada uno).
+
+  # --- Servicio de la Base de Datos MySQL ---
+  db:
+    image: mysql # Usa la imagen oficial de MySQL de Docker Hub.
+    env_file:
+      - .env # Carga variables de entorno para la configuración de MySQL.
+    environment:
+      # Variables de entorno específicas de MySQL para configurar la base de datos.
+      MYSQL_USER: ${DB_USER} # Usuario de la base de datos (tomado del .env).
+      MYSQL_PASSWORD: ${DB_PASSWORD} # Contraseña del usuario (tomada del .env).
+      MYSQL_DATABASE: ${DB_NAME} # Nombre de la base de datos a crear (tomado del .env).
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD} # Contraseña del usuario root de MySQL (tomada del .env).
+    volumes:
+      - db_data:/var/lib/mysql # Volumen persistente para almacenar los datos de la DB.
+                               # Los datos no se perderán si el contenedor se recrea.
+      - ./mysql-init:/docker-entrypoint-initdb.d # Monta scripts SQL para inicializar la DB al primer inicio.
+    ports:
+      - "3307:3307" # Mapea el puerto 3307 del host al puerto 3307 del contenedor (puerto por defecto de MySQL).
+    restart: always
+    healthcheck:
+      # Define cómo Docker verifica que la DB está lista y accesible.
+      test: ["CMD-SHELL", "mysql -h localhost -u$MYSQL_USER -p$MYSQL_PASSWORD -e \"SELECT 1;\""]
+      interval: 15s
+      timeout: 10s
+      retries: 15
+      start_period: 90s # Mayor tiempo para que la DB inicie completamente.
+    logging: # Configuración del driver de logs de Docker para la DB (Promtail también los recogerá).
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "5"
+
+  # --- Servicio de Prometheus (para Métricas) ---
+  prometheus:
+    image: prom/prometheus:latest # Usa la imagen más reciente de Prometheus.
+    container_name: prometheus # Nombre explícito para el contenedor.
+    ports:
+      - "9090:9090" # Puerto para la interfaz web de Prometheus.
+    volumes:
+      - ./prometheus:/etc/prometheus # Monta el directorio de configuración de Prometheus.
+      - prometheus_data:/prometheus # Volumen para persistir los datos de métricas recolectados por Prometheus.
+    command: --config.file=/etc/prometheus/prometheus.yml --web.enable-remote-write-receiver # Inicia Prometheus con la configuración especificada.
+    networks:
+      - default # Coloca Prometheus en la red por defecto de Docker Compose para comunicarse con 'app'.
+    restart: always
+
+  # --- Servicio de Loki (para Logs) ---
+  loki:
+    image: grafana/loki:latest # Usa la imagen más reciente de Loki.
+    container_name: loki
+    ports:
+      - "3100:3100" # Puerto HTTP donde Loki escucha para recibir logs (Promtail le envía aquí).
+    volumes:
+      - ./loki:/etc/loki # Monta el directorio de configuración de Loki.
+      - loki_data:/loki # Volumen para persistir los datos de logs de Loki.
+    command: -config.file=/etc/loki/local-config.yaml # Inicia Loki con la configuración.
+    networks:
+      - default
+    restart: always
+
+  # --- Servicio de Promtail (Agente para Logs) ---
+  promtail:
+    image: grafana/promtail:latest # Usa la imagen más reciente de Promtail.
+    container_name: promtail
+    volumes:
+      - ./promtail:/etc/promtail # Monta el directorio de configuración de Promtail.
+      # Montajes especiales para que Promtail pueda leer los logs de Docker:
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro # Acceso de solo lectura a los archivos de logs de Docker.
+      - /var/run/docker.sock:/var/run/docker.sock:ro # Acceso de solo lectura al socket de Docker para descubrir contenedores.
+    command: -config.file=/etc/promtail/config.yml # Inicia Promtail con la configuración.
+    networks:
+      - default
+    depends_on:
+      - loki # Promtail necesita que Loki esté levantado para poder enviar logs.
+    restart: always
+
+  # --- Servicio de Grafana (para Visualización) ---
+  grafana:
+    image: grafana/grafana:latest # Usa la imagen más reciente de Grafana.
+    container_name: grafana
+    ports:
+      - "3001:3000" # Mapea el puerto 3001 del host al puerto 3000 del contenedor (puerto por defecto de Grafana).
+                   # Usamos 3001 para evitar conflicto con el puerto 3000 de la aplicación.
+    volumes:
+      - grafana_data:/var/lib/grafana # Volumen para persistir dashboards, configuraciones y usuarios de Grafana.
+    environment:
+      # Variables de entorno para configurar el usuario y contraseña inicial de Grafana.
+      # ¡CAMBIA ESTAS CREDENCIALES EN UN ENTORNO DE PRODUCCIÓN!
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: password
+    networks:
+      - default
+    depends_on:
+      - prometheus # Grafana necesita Prometheus para consultar métricas.
+      - loki       # Grafana necesita Loki para consultar logs.
+    restart: always
+
+# --- Definición de Volúmenes ---
+# Los volúmenes permiten que los datos persistan incluso si los contenedores se eliminan y se recrean.
+volumes:
+  db_data: # Para los datos de la base de datos MySQL.
+  prometheus_data: # Para los datos de métricas de Prometheus.
+  loki_data: # Para los datos de logs de Loki.
+  grafana_data: # Para los datos de configuración de Grafana.
+
+# --- Definición de Redes ---
+# Por defecto, Docker Compose crea una red interna para todos los servicios definidos.
+# Aquí la definimos explícitamente para mayor claridad.
+networks:
+  default:
+    # Puedes configurar esta red si necesitas opciones avanzadas.
+    # Por ahora, la configuración por defecto es suficiente para la comunicación entre servicios.

@@ -1,0 +1,26 @@
+# prometheus/prometheus.yml
+# Configuración global de Prometheus.
+global:
+  scrape_interval: 15s # Prometheus intentará raspar los targets cada 15 segundos.
+  evaluation_interval: 15s # Las reglas de alerta se evaluarán cada 15 segundos.
+
+# Sección para definir los "jobs" de raspado.
+# Cada job define un conjunto de targets de los cuales Prometheus recolectará métricas.
+scrape_configs:
+  # Job para la propia instancia de Prometheus (para monitorear a Prometheus mismo).
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090'] # El propio Prometheus expone sus métricas en este puerto.
+
+  # Job para la aplicación Node.js (tu servicio 'app' en Docker Compose).
+  - job_name: 'app_metrics' # Nombre del trabajo, aparecerá como una etiqueta '__job__' en las métricas.
+    static_configs:
+      # 'app' es el nombre del servicio de tu aplicación en docker-compose.yml.
+      # Docker Compose resuelve 'app' a la IP del contenedor.
+      # ':3000' es el puerto donde tu aplicación Node.js expone las métricas (tu /metrics endpoint).
+      - targets: ['app:3000']
+    metrics_path: /metrics # La ruta específica donde tu aplicación expone las métricas de Prometheus.
+                           # Asegúrate de que coincida con tu código Node.js.
+
+  # Puedes añadir más jobs aquí para otros servicios o nodos que expongan métricas.
+  # Por ejemplo, para el exporter de MySQL si lo estuvieras usando.
