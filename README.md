@@ -39,29 +39,27 @@ guestbook/
 
 Sigue estos pasos cuidadosamente para poner todo en marcha.
 
-1. Clonar el Repositorio (si aún no lo has hecho)
+1. Clonar el Repositorio 
 
 Si todavía no tienes el código, clónalo desde GitHub:
 
 ```
-  git clone https://github.com/KeepCodingCloudDevops12/guestbook
+  git clone https://github.com/KeepCodingCloudDevops12/guestbook](https://github.com/naesman1/Docker-guestbook.git
   
   cd guestbook
 ```
 🔒 Variables de Entorno (.env)
 
-Por razones de seguridad, el archivo .env que contiene credenciales sensibles no se comparte en este repositorio. Lo recibirás por separado y de forma privada (por ejemplo, a través de un gestor de contraseñas seguro o un canal cifrado).
+Por razones de seguridad, el archivo .env que contiene credenciales sensibles comparte en este repositorio como -copia.env. Como es entorno de laboratorio se comparte por este medio pero en ambitos profesionales se hace por un canal mas seguro. 
 
-Crear y cargar el archivo .env
-
-1. Una vez que recibas el archivo .env de forma segura, guárdalo en la carpeta raíz de este proyecto (al mismo nivel que docker-compose.yml).
+1. Edita el nombre de -copia.env -> .env, guárdalo en la carpeta raíz de este proyecto (al mismo nivel que docker-compose.yml).
 
 2. Abre una terminal de PowerShell (si estás en Windows) o tu terminal favorita (Linux/macOS).
 
-3. Navega hasta la carpeta raíz del proyecto guestbook:
+3. Navega hasta la carpeta raíz del proyecto Docker-guestbook:
 
 ```
-  cd guestbook/ # Ajusta esta ruta a la de tu proyecto. La ruta escrita es un ejemplo
+  cd ./Docker-guestbook/ # Ajusta esta ruta a la de tu proyecto. La ruta escrita es un ejemplo
 ```
 
 2. Limpiar la Caché de Docker (¡Muy Importante!)
@@ -182,3 +180,4 @@ Cuando hayas terminado de trabajar, puedes detener y eliminar todos los contened
   docker compose down -v #Detiene y elimina contenedores y los volumenes borrando toda la informacion de la base de datos y de los logs
 ```
 ¡Eso es todo! Ahora tienes una aplicación funcional con capacidades de monitoreo de clase mundial. KeepCoding Rules!
+
