@@ -44,9 +44,9 @@ Sigue estos pasos cuidadosamente para poner todo en marcha.
 Si todavía no tienes el código, clónalo desde GitHub:
 
 ```
-  git clone https://github.com/KeepCodingCloudDevops12/guestbook](https://github.com/naesman1/Docker-guestbook.git
+  git clone https://github.com/naesman1/Docker-guestbook.git
   
-  cd guestbook
+  cd Docker-guestbook
 ```
 🔒 Variables de Entorno (.env)
 
@@ -180,4 +180,5 @@ Cuando hayas terminado de trabajar, puedes detener y eliminar todos los contened
   docker compose down -v #Detiene y elimina contenedores y los volumenes borrando toda la informacion de la base de datos y de los logs
 ```
 ¡Eso es todo! Ahora tienes una aplicación funcional con capacidades de monitoreo de clase mundial. KeepCoding Rules!
+
 
